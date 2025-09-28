@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}قائمة الموظفين - نظام أتمتة العلاوات والترفيعات{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="page-header animate__animated animate__fadeInDown">
+                <h1 class="page-title">
+                    <i class="fas fa-users me-3"></i>
+                    إدارة الموظفين
+                </h1>
+                <p class="page-subtitle">عرض وإدارة جميع الموظفين في النظام</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        البحث والفلترة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">البحث</label>
+                            <input type="text" class="form-control" name="search" 
+                                   value="{{ search }}" placeholder="البحث في الأسماء...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">الصنف الوظيفي</label>
+                            <select class="form-select" name="job_category">
+                                <option value="">جميع الأصناف</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}" {{ 'selected' if job_category == category }}>
+                                    {{ category }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">الدرجة الوظيفية</label>
+                            <select class="form-select" name="job_grade">
+                                <option value="">جميع الدرجات</option>
+                                {% for grade in grades %}
+                                <option value="{{ grade }}" {{ 'selected' if job_grade == grade }}>
+                                    الدرجة {{ grade }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">ترتيب حسب</label>
+                            <select class="form-select" name="sort_by">
+                                <option value="full_name" {{ 'selected' if sort_by == 'full_name' }}>الاسم</option>
+                                <option value="start_date" {{ 'selected' if sort_by == 'start_date' }}>تاريخ التعيين</option>
+                                <option value="job_grade" {{ 'selected' if sort_by == 'job_grade' }}>الدرجة</option>
+                                <option value="job_category" {{ 'selected' if sort_by == 'job_category' }}>الصنف</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>
+                                    بحث
+                                </button>
+                                <a href="{{ url_for('employees.list_employees') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>
+                                    إعادة تعيين
+                                </a>
+                                <a href="{{ url_for('employees.add_employee') }}" class="btn btn-success">
+                                    <i class="fas fa-user-plus me-1"></i>
+                                    إضافة موظف
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Info -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted">
+                        عرض {{ employees|length }} من أصل {{ pagination.total }} موظف
+                    </span>
+                </div>
+                <div>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleView('grid')">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm active" onclick="toggleView('list')">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employees Grid -->
+    <div id="employees-grid" class="row">
+        {% for employee in employees %}
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="employee-card animate__animated animate__fadeInUp" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+                <div class="text-center">
+                    {% if employee.photo_path %}
+                    <img src="{{ url_for('static', filename='uploads/' + employee.photo_path) }}" 
+                         alt="{{ employee.full_name }}" class="employee-photo">
+                    {% else %}
+                    <div class="employee-photo-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <h5 class="employee-name">{{ employee.full_name }}</h5>
+                    {% if employee.title %}
+                    <p class="text-muted mb-1">{{ employee.title }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="employee-details mt-3">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted d-block">الصنف</small>
+                            <span class="badge bg-secondary">{{ employee.job_category }}</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">الدرجة</small>
+                            <span class="badge bg-primary">{{ employee.job_grade }}/{{ employee.job_stage }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center mt-2">
+                        <div class="col-12">
+                            <small class="text-muted d-block">الاستحقاق القادم</small>
+                            <span class="badge {{ 'bg-success' if employee.next_entitlement_type == 'ترفيع' else 'bg-info' }}">
+                                {{ employee.next_entitlement_type }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center mt-2">
+                        <div class="col-12">
+                            <small class="text-muted d-block">تاريخ التعيين</small>
+                            <span>{{ employee.start_date | arabic_date }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 d-flex gap-2">
+                    <a href="{{ url_for('employees.view_employee', employee_id=employee.id) }}" 
+                       class="btn btn-primary btn-sm flex-fill">
+                        <i class="fas fa-eye me-1"></i>
+                        عرض الملف
+                    </a>
+                    <a href="{{ url_for('employees.edit_employee', employee_id=employee.id) }}" 
+                       class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="{{ url_for('events.add_event', employee_id=employee.id) }}" 
+                       class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-calendar-plus"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">لا توجد موظفين</h5>
+                <p class="text-muted">لم يتم العثور على موظفين يطابقون معايير البحث</p>
+                <a href="{{ url_for('employees.add_employee') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>
+                    إضافة موظف جديد
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="تنقل الصفحات">
+                <ul class="pagination">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('employees.list_employees', page=pagination.prev_num, search=search, job_category=job_category, job_grade=job_grade, sort_by=sort_by) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.current_page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('employees.list_employees', page=page_num, search=search, job_category=job_category, job_grade=job_grade, sort_by=sort_by) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('employees.list_employees', page=pagination.next_num, search=search, job_category=job_category, job_grade=job_grade, sort_by=sort_by) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleView(viewType) {
+    // تبديل العرض بين الشبكة والقائمة
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    if (viewType === 'grid') {
+        document.querySelector('[onclick="toggleView(\'grid\')"]').classList.add('active');
+        // تطبيق عرض الشبكة
+    } else {
+        document.querySelector('[onclick="toggleView(\'list\')"]').classList.add('active');
+        // تطبيق عرض القائمة
+    }
+}
+
+// البحث المباشر
+let searchTimeout;
+$('input[name="search"]').on('input', function() {
+    clearTimeout(searchTimeout);
+    const form = $(this).closest('form');
+    
+    searchTimeout = setTimeout(function() {
+        form.submit();
+    }, 500);
+});
+</script>
+{% endblock %}
+
