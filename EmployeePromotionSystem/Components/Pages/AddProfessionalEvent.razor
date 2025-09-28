@@ -1,0 +1,605 @@
+@page "/add-event"
+@page "/add-event/{employeeId:int?}"
+@using EmployeePromotionSystem.Services
+@using EmployeePromotionSystem.Models
+@inject IEmployeeService EmployeeService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>إضافة حدث مهني - نظام أتمتة العلاوات والترفيعات</PageTitle>
+
+<div class="add-event-container">
+    <!-- رأس الصفحة -->
+    <div class="page-header animate__animated animate__fadeInDown">
+        <h1 class="page-title">
+            <i class="fas fa-calendar-plus"></i>
+            إضافة حدث مهني جديد
+        </h1>
+        <p class="page-subtitle">إضافة حدث مهني يؤثر على المسار الوظيفي للموظف</p>
+    </div>
+
+    <!-- نموذج إضافة الحدث -->
+    <div class="event-form animate__animated animate__fadeInUp">
+        <EditForm Model="newEvent" OnValidSubmit="SaveEvent">
+            <DataAnnotationsValidator />
+            
+            <!-- القسم الأول: معلومات عامة -->
+            <div class="form-section">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        المعلومات العامة
+                    </h3>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-users"></i>
+                                تحديد الموظفين *
+                            </label>
+                            @if (EmployeeId.HasValue)
+                            {
+                                <div class="selected-employee">
+                                    <i class="fas fa-user"></i>
+                                    @selectedEmployeeName
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ClearSelectedEmployee">
+                                        <i class="fas fa-times"></i>
+                                        تغيير
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="employee-selection">
+                                    <div class="selection-options">
+                                        <label class="checkbox-option">
+                                            <input type="checkbox" @bind="selectAllEmployees" @onchange="OnSelectAllChanged" />
+                                            <span class="checkmark"></span>
+                                            تحديد جميع الموظفين
+                                        </label>
+                                    </div>
+                                    
+                                    @if (!selectAllEmployees && employees != null)
+                                    {
+                                        <div class="employees-list">
+                                            @foreach (var category in employees.GroupBy(e => e.JobCategory))
+                                            {
+                                                <div class="category-group">
+                                                    <h5 class="category-title">@category.Key</h5>
+                                                    @foreach (var employee in category)
+                                                    {
+                                                        <label class="checkbox-option employee-option">
+                                                            <input type="checkbox" 
+                                                                   checked="@selectedEmployeeIds.Contains(employee.Id)"
+                                                                   @onchange="(e) => OnEmployeeSelectionChanged(employee.Id, (bool)e.Value)" />
+                                                            <span class="checkmark"></span>
+                                                            @employee.FullName
+                                                            <small>(@employee.JobCategory - الدرجة @employee.JobGrade)</small>
+                                                        </label>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-list"></i>
+                                نوع الحدث *
+                            </label>
+                            <select @bind="newEvent.EventType" class="form-control" @onchange="OnEventTypeChanged">
+                                <option value="">اختر نوع الحدث</option>
+                                <option value="@EventType.Commendation">كتاب شكر وتقدير</option>
+                                <option value="@EventType.HigherDegree">الحصول على شهادة أعلى</option>
+                                <option value="@EventType.NoticePenalty">عقوبة لفت نظر</option>
+                                <option value="@EventType.WarningPenalty">عقوبة إنذار</option>
+                                <option value="@EventType.ReprimandPenalty">عقوبة توبيخ</option>
+                                <option value="@EventType.UnpaidLeave">إجازة بدون راتب</option>
+                                <option value="@EventType.DisabilityLeave">إجازة رعاية المعاقين</option>
+                                <option value="@EventType.FiveYearLeave">إجازة الخمس سنوات</option>
+                                <option value="@EventType.MaternityLeave">إجازة أمومة</option>
+                                <option value="@EventType.Custom">حدث مخصص</option>
+                            </select>
+                            <ValidationMessage For="@(() => newEvent.EventType)" class="validation-message" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-file-alt"></i>
+                                رقم الكتاب الرسمي
+                            </label>
+                            <InputText @bind-Value="newEvent.DocumentNumber" class="form-control" 
+                                     placeholder="أدخل رقم الكتاب" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-calendar"></i>
+                                تاريخ الكتاب الرسمي
+                            </label>
+                            <InputDate @bind-Value="newEvent.DocumentDate" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-calendar-check"></i>
+                                تاريخ الحدث *
+                            </label>
+                            <InputDate @bind-Value="newEvent.EventDate" class="form-control" />
+                            <ValidationMessage For="@(() => newEvent.EventDate)" class="validation-message" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <i class="fas fa-comment"></i>
+                        ملاحظات ووصف الحدث
+                    </label>
+                    <textarea @bind="newEvent.Description" class="form-control" rows="3" 
+                              placeholder="أدخل وصفاً تفصيلياً للحدث..."></textarea>
+                </div>
+            </div>
+
+            <!-- القسم الثاني: تفاصيل خاصة بنوع الحدث -->
+            @if (newEvent.EventType != EventType.None)
+            {
+                <div class="form-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-cogs"></i>
+                            تفاصيل خاصة بالحدث
+                        </h3>
+                    </div>
+                    
+                    @if (newEvent.EventType == EventType.Commendation)
+                    {
+                        <div class="commendation-details">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>كتاب شكر وتقدير:</strong> يقلص مدة الاستحقاق للعلاوة القادمة فقط
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-clock"></i>
+                                    مدة التقليص *
+                                </label>
+                                <select @bind="reductionMonths" class="form-control">
+                                    <option value="0">اختر مدة التقليص</option>
+                                    <option value="1">شهر واحد</option>
+                                    <option value="2">شهران</option>
+                                    <option value="3">3 أشهر</option>
+                                    <option value="4">4 أشهر</option>
+                                    <option value="5">5 أشهر</option>
+                                    <option value="6">6 أشهر</option>
+                                </select>
+                            </div>
+                            <div class="validation-rules">
+                                <h5>القواعد والقيود:</h5>
+                                <ul>
+                                    <li>لا يسمح بأكثر من 3 كتب شكر (أقل من 6 أشهر) في السنة الواحدة</li>
+                                    <li>يمكن إضافة كتاب شكر رابع إذا كانت مدته 6 أشهر</li>
+                                    <li>لا يسمح بأكثر من كتابي شكر بمدة 6 أشهر طوال المسيرة الوظيفية</li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                    else if (newEvent.EventType == EventType.HigherDegree)
+                    {
+                        <div class="degree-details">
+                            <div class="alert alert-success">
+                                <i class="fas fa-graduation-cap"></i>
+                                <strong>شهادة أعلى:</strong> يقلص مدة العلاوة القادمة بـ 12 شهراً (Step)
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">صنف الموظف الجديد</label>
+                                        <select @bind="newJobCategory" class="form-control">
+                                            <option value="">اختر الصنف</option>
+                                            <option value="تدريسي">تدريسي</option>
+                                            <option value="إداري">إداري</option>
+                                            <option value="فني">فني</option>
+                                            <option value="خدمي">خدمي</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">العنوان الوظيفي الجديد</label>
+                                        <InputText @bind-Value="newJobTitle" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="form-label">الشهادة العلمية الجديدة</label>
+                                        <select @bind="newAcademicDegree" class="form-control">
+                                            <option value="">اختر الشهادة</option>
+                                            <option value="دبلوم">دبلوم</option>
+                                            <option value="بكالوريوس">بكالوريوس</option>
+                                            <option value="ماجستير">ماجستير</option>
+                                            <option value="دكتوراه">دكتوراه</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (newEvent.EventType == EventType.NoticePenalty || 
+                             newEvent.EventType == EventType.WarningPenalty || 
+                             newEvent.EventType == EventType.ReprimandPenalty)
+                    {
+                        <div class="penalty-details">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>عقوبة:</strong> تضيف مدة إضافية لاستحقاق العلاوة القادمة
+                            </div>
+                            <div class="penalty-impact">
+                                <h5>التأثير على المدة:</h5>
+                                <ul>
+                                    <li><strong>لفت نظر:</strong> +3 أشهر</li>
+                                    <li><strong>إنذار:</strong> +6 أشهر</li>
+                                    <li><strong>توبيخ:</strong> +12 شهراً</li>
+                                </ul>
+                            </div>
+                        </div>
+                    }
+                    else if (newEvent.EventType == EventType.UnpaidLeave || 
+                             newEvent.EventType == EventType.DisabilityLeave || 
+                             newEvent.EventType == EventType.FiveYearLeave || 
+                             newEvent.EventType == EventType.MaternityLeave)
+                    {
+                        <div class="leave-details">
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-calendar-times"></i>
+                                <strong>إجازة:</strong> تجمد احتساب مدة الخدمة خلال فترة الإجازة
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">
+                                            <i class="fas fa-calendar-minus"></i>
+                                            تاريخ الانفكاك *
+                                        </label>
+                                        <InputDate @bind-Value="leaveStartDate" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">
+                                            <i class="fas fa-calendar-plus"></i>
+                                            تاريخ المباشرة *
+                                        </label>
+                                        <InputDate @bind-Value="leaveEndDate" class="form-control" />
+                                    </div>
+                                </div>
+                            </div>
+                            @if (leaveStartDate.HasValue && leaveEndDate.HasValue && leaveEndDate > leaveStartDate)
+                            {
+                                <div class="leave-duration">
+                                    <i class="fas fa-clock"></i>
+                                    مدة الإجازة: @((leaveEndDate.Value - leaveStartDate.Value).Days) يوم
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (newEvent.EventType == EventType.Custom)
+                    {
+                        <div class="custom-details">
+                            <div class="alert alert-info">
+                                <i class="fas fa-tools"></i>
+                                <strong>حدث مخصص:</strong> يمكنك تحديد التأثير يدوياً
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">نوع التعديل</label>
+                                        <select @bind="customAdjustmentType" class="form-control">
+                                            <option value="">اختر نوع التعديل</option>
+                                            <option value="add">إضافة مدة</option>
+                                            <option value="subtract">طرح مدة</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">عدد الشهور</label>
+                                        <InputNumber @bind-Value="customMonths" class="form-control" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    ملاحظات (إلزامي للأحداث المخصصة) *
+                                </label>
+                                <textarea @bind="customNotes" class="form-control" rows="3" 
+                                          placeholder="يرجى توضيح سبب التعديل اليدوي..."></textarea>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- أزرار الحفظ والإلغاء -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success btn-lg" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>جاري الحفظ...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-save"></i>
+                        <span>حفظ الحدث</span>
+                    }
+                </button>
+                <button type="button" class="btn btn-secondary btn-lg" @onclick="Cancel">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? EmployeeId { get; set; }
+    
+    private ProfessionalEvent newEvent = new() { EventDate = DateTime.Today };
+    private List<Employee>? employees;
+    private List<int> selectedEmployeeIds = new();
+    private bool selectAllEmployees = false;
+    private string selectedEmployeeName = "";
+    
+    // حقول خاصة بكتاب الشكر
+    private int reductionMonths = 0;
+    
+    // حقول خاصة بالشهادة الأعلى
+    private string newJobCategory = "";
+    private string newJobTitle = "";
+    private string newAcademicDegree = "";
+    
+    // حقول خاصة بالإجازات
+    private DateTime? leaveStartDate;
+    private DateTime? leaveEndDate;
+    
+    // حقول خاصة بالحدث المخصص
+    private string customAdjustmentType = "";
+    private int customMonths = 0;
+    private string customNotes = "";
+    
+    private bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+        
+        if (EmployeeId.HasValue)
+        {
+            var employee = await EmployeeService.GetEmployeeByIdAsync(EmployeeId.Value);
+            if (employee != null)
+            {
+                selectedEmployeeName = employee.FullName;
+                selectedEmployeeIds.Add(employee.Id);
+            }
+        }
+    }
+
+    private async Task LoadEmployees()
+    {
+        try
+        {
+            employees = await EmployeeService.GetAllEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"خطأ في تحميل الموظفين: {ex.Message}");
+        }
+    }
+
+    private void OnSelectAllChanged(ChangeEventArgs e)
+    {
+        selectAllEmployees = (bool)e.Value;
+        if (selectAllEmployees && employees != null)
+        {
+            selectedEmployeeIds = employees.Select(emp => emp.Id).ToList();
+        }
+        else
+        {
+            selectedEmployeeIds.Clear();
+        }
+    }
+
+    private void OnEmployeeSelectionChanged(int employeeId, bool isSelected)
+    {
+        if (isSelected)
+        {
+            if (!selectedEmployeeIds.Contains(employeeId))
+                selectedEmployeeIds.Add(employeeId);
+        }
+        else
+        {
+            selectedEmployeeIds.Remove(employeeId);
+        }
+        
+        // تحديث حالة "تحديد الكل"
+        selectAllEmployees = employees != null && selectedEmployeeIds.Count == employees.Count;
+    }
+
+    private void OnEventTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<EventType>(e.Value?.ToString(), out var eventType))
+        {
+            newEvent.EventType = eventType;
+            
+            // تعيين القيم الافتراضية حسب نوع الحدث
+            switch (eventType)
+            {
+                case EventType.NoticePenalty:
+                    newEvent.ImpactMonths = 3;
+                    break;
+                case EventType.WarningPenalty:
+                    newEvent.ImpactMonths = 6;
+                    break;
+                case EventType.ReprimandPenalty:
+                    newEvent.ImpactMonths = 12;
+                    break;
+                case EventType.HigherDegree:
+                    newEvent.ImpactMonths = -12; // Step
+                    break;
+                default:
+                    newEvent.ImpactMonths = 0;
+                    break;
+            }
+        }
+    }
+
+    private void ClearSelectedEmployee()
+    {
+        EmployeeId = null;
+        selectedEmployeeName = "";
+        selectedEmployeeIds.Clear();
+    }
+
+    private async Task SaveEvent()
+    {
+        try
+        {
+            isSaving = true;
+            
+            // التحقق من الحقول المطلوبة
+            if (newEvent.EventType == EventType.None)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "يرجى اختيار نوع الحدث");
+                return;
+            }
+
+            if (!selectedEmployeeIds.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "يرجى تحديد موظف واحد على الأقل");
+                return;
+            }
+
+            // معالجة التفاصيل الخاصة بكل نوع حدث
+            switch (newEvent.EventType)
+            {
+                case EventType.Commendation:
+                    if (reductionMonths == 0)
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "يرجى تحديد مدة التقليص لكتاب الشكر");
+                        return;
+                    }
+                    newEvent.ImpactMonths = -reductionMonths;
+                    break;
+                    
+                case EventType.HigherDegree:
+                    newEvent.ImpactMonths = -12; // Step
+                    break;
+                    
+                case EventType.UnpaidLeave:
+                case EventType.DisabilityLeave:
+                case EventType.FiveYearLeave:
+                case EventType.MaternityLeave:
+                    if (!leaveStartDate.HasValue || !leaveEndDate.HasValue)
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "يرجى تحديد تواريخ الإجازة");
+                        return;
+                    }
+                    if (leaveEndDate <= leaveStartDate)
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "تاريخ المباشرة يجب أن يكون بعد تاريخ الانفكاك");
+                        return;
+                    }
+                    
+                    var leaveDays = (leaveEndDate.Value - leaveStartDate.Value).Days;
+                    newEvent.ImpactMonths = (int)Math.Ceiling(leaveDays / 30.0); // تحويل الأيام إلى أشهر
+                    newEvent.StartDate = leaveStartDate;
+                    newEvent.EndDate = leaveEndDate;
+                    break;
+                    
+                case EventType.Custom:
+                    if (string.IsNullOrWhiteSpace(customNotes))
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "الملاحظات إلزامية للأحداث المخصصة");
+                        return;
+                    }
+                    if (customMonths == 0)
+                    {
+                        await JSRuntime.InvokeVoidAsync("alert", "يرجى تحديد عدد الشهور للحدث المخصص");
+                        return;
+                    }
+                    
+                    newEvent.ImpactMonths = customAdjustmentType == "subtract" ? -customMonths : customMonths;
+                    newEvent.Description += $"\n\nملاحظات إضافية: {customNotes}";
+                    break;
+            }
+
+            // حفظ الحدث لكل موظف محدد
+            var savedEvents = new List<ProfessionalEvent>();
+            foreach (var employeeId in selectedEmployeeIds)
+            {
+                var eventCopy = new ProfessionalEvent
+                {
+                    EmployeeId = employeeId,
+                    EventType = newEvent.EventType,
+                    EventDate = newEvent.EventDate,
+                    Description = newEvent.Description,
+                    DocumentNumber = newEvent.DocumentNumber,
+                    DocumentDate = newEvent.DocumentDate,
+                    ImpactMonths = newEvent.ImpactMonths,
+                    StartDate = newEvent.StartDate,
+                    EndDate = newEvent.EndDate
+                };
+
+                var savedEvent = await EmployeeService.AddProfessionalEventAsync(eventCopy);
+                savedEvents.Add(savedEvent);
+                
+                // تحديث بيانات الموظف إذا كان الحدث شهادة أعلى
+                if (newEvent.EventType == EventType.HigherDegree)
+                {
+                    var employee = await EmployeeService.GetEmployeeByIdAsync(employeeId);
+                    if (employee != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(newJobCategory))
+                            employee.JobCategory = newJobCategory;
+                        if (!string.IsNullOrWhiteSpace(newJobTitle))
+                            employee.Title = newJobTitle;
+                        if (!string.IsNullOrWhiteSpace(newAcademicDegree))
+                            employee.AcademicDegree = newAcademicDegree;
+                            
+                        await EmployeeService.UpdateEmployeeAsync(employee);
+                    }
+                }
+            }
+
+            await JSRuntime.InvokeVoidAsync("alert", $"تم حفظ الحدث المهني بنجاح لـ {savedEvents.Count} موظف!");
+            await JSRuntime.InvokeVoidAsync("window.location.href", "/events");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"حدث خطأ أثناء حفظ الحدث: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task Cancel()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", "/events");
+    }
+}
