@@ -1,0 +1,6 @@
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.csproj.AssemblyReference.cache
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.GeneratedMSBuildEditorConfig.editorconfig
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.AssemblyInfoInputs.cache
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.AssemblyInfo.cs
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.csproj.CoreCompileInputs.cache
+/tmp/mustafamohammad2017-dev/k/EmployeePromotionSystem/obj/Debug/net8.0/EmployeePromotionSystem.MvcApplicationPartsAssemblyInfo.cache

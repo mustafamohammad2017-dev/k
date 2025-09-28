@@ -1,0 +1,25 @@
+@inherits LayoutView
+@namespace EmployeePromotionSystem.Components.Layout
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <h1>نظام أتمتة العلاوات والترفيعات الوظيفية</h1>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    حدث خطأ غير متوقع.
+    <a href="" class="reload">إعادة تحميل</a>
+    <a class="dismiss">🗙</a>
+</div>
+

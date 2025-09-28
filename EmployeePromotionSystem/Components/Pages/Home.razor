@@ -1,0 +1,452 @@
+@page "/"
+@using EmployeePromotionSystem.Services
+@inject IEmployeeService EmployeeService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>الصفحة الرئيسية - نظام أتمتة العلاوات والترفيعات</PageTitle>
+
+<div class="home-container">
+    <!-- ترحيب وعنوان رئيسي -->
+    <div class="welcome-section animate__animated animate__fadeInDown">
+        <div class="welcome-card">
+            <div class="welcome-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h1 class="welcome-title">مرحباً بك في نظام أتمتة العلاوات والترفيعات الوظيفية</h1>
+            <p class="welcome-subtitle">
+                نظام ذكي ومتطور لإدارة وحساب العلاوات والترفيعات الوظيفية بدقة وكفاءة عالية
+            </p>
+        </div>
+    </div>
+
+    <!-- بطاقات الإحصائيات الرئيسية -->
+    <div class="stats-section animate__animated animate__fadeInUp">
+        <div class="row">
+            <div class="col-md-3 col-sm-6 mb-4">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">@(statistics?.TotalEmployees ?? 0)</h3>
+                        <p class="stat-label">إجمالي الموظفين</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4">
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">@(statistics?.TeachingStaff ?? 0)</h3>
+                        <p class="stat-label">الكادر التدريسي</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4">
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">@(statistics?.AdministrativeStaff ?? 0)</h3>
+                        <p class="stat-label">الكادر الإداري</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4">
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">@(statistics?.EmployeesEligibleForPromotion ?? 0)</h3>
+                        <p class="stat-label">مستحقون للترفيع</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الإجراءات السريعة -->
+    <div class="quick-actions-section animate__animated animate__fadeInLeft">
+        <h2 class="section-title">
+            <i class="fas fa-bolt"></i>
+            الإجراءات السريعة
+        </h2>
+        
+        <div class="row">
+            <div class="col-md-4 col-sm-6 mb-4">
+                <div class="action-card" @onclick="NavigateToAddEmployee">
+                    <div class="action-icon">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <h4 class="action-title">إضافة موظف جديد</h4>
+                    <p class="action-description">إضافة موظف جديد إلى النظام مع جميع بياناته الأساسية</p>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-sm-6 mb-4">
+                <div class="action-card" @onclick="NavigateToEmployees">
+                    <div class="action-icon">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    <h4 class="action-title">عرض الموظفين</h4>
+                    <p class="action-description">استعراض قائمة الموظفين مع إمكانية البحث والفلترة</p>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-sm-6 mb-4">
+                <div class="action-card" @onclick="NavigateToEvents">
+                    <div class="action-icon">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <h4 class="action-title">إضافة حدث مهني</h4>
+                    <p class="action-description">إضافة كتاب شكر، عقوبة، إجازة أو أي حدث مهني آخر</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الموظفون المستحقون قريباً -->
+    @if (upcomingEntitlements != null && upcomingEntitlements.Any())
+    {
+        <div class="upcoming-section animate__animated animate__fadeInRight">
+            <h2 class="section-title">
+                <i class="fas fa-clock"></i>
+                الاستحقاقات القادمة
+            </h2>
+            
+            <div class="upcoming-list">
+                @foreach (var entitlement in upcomingEntitlements.Take(5))
+                {
+                    <div class="upcoming-item">
+                        <div class="upcoming-avatar">
+                            @if (!string.IsNullOrEmpty(entitlement.Employee.PhotoPath))
+                            {
+                                <img src="@entitlement.Employee.PhotoPath" alt="@entitlement.Employee.FullName" />
+                            }
+                            else
+                            {
+                                <i class="fas fa-user"></i>
+                            }
+                        </div>
+                        <div class="upcoming-info">
+                            <h5 class="upcoming-name">@entitlement.Employee.FullName</h5>
+                            <p class="upcoming-details">
+                                @entitlement.NextEntitlementType.ToString() - @entitlement.NextGradeStage
+                            </p>
+                            <small class="upcoming-date">
+                                @entitlement.NextEntitlementDate.ToString("dd/MM/yyyy")
+                                (@entitlement.DaysUntilEntitlement يوم)
+                            </small>
+                        </div>
+                        <div class="upcoming-badge">
+                            @if (entitlement.NextEntitlementType == EmployeePromotionSystem.Models.PromotionType.Promotion)
+                            {
+                                <span class="badge badge-promotion">ترفيع</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-allowance">علاوة</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .home-container {
+        padding: 20px 0;
+    }
+
+    .welcome-section {
+        margin-bottom: 40px;
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .welcome-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.9;
+    }
+
+    .welcome-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+        line-height: 1.2;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .stats-section {
+        margin-bottom: 40px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-left: 20px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .stat-primary .stat-icon { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .stat-success .stat-icon { background: linear-gradient(135deg, #4CAF50, #45a049); }
+    .stat-info .stat-icon { background: linear-gradient(135deg, #2196F3, #1976D2); }
+    .stat-warning .stat-icon { background: linear-gradient(135deg, #FF9800, #F57C00); }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: #333;
+    }
+
+    .stat-label {
+        font-size: 1rem;
+        color: #666;
+        margin: 5px 0 0 0;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title i {
+        margin-left: 15px;
+        color: #667eea;
+    }
+
+    .quick-actions-section {
+        margin-bottom: 40px;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+    }
+
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-icon {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+
+    .action-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+    }
+
+    .action-description {
+        color: #666;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .upcoming-section {
+        margin-bottom: 40px;
+    }
+
+    .upcoming-list {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .upcoming-item {
+        display: flex;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .upcoming-item:last-child {
+        border-bottom: none;
+    }
+
+    .upcoming-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 15px;
+        overflow: hidden;
+    }
+
+    .upcoming-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .upcoming-avatar i {
+        font-size: 1.5rem;
+        color: #999;
+    }
+
+    .upcoming-info {
+        flex: 1;
+    }
+
+    .upcoming-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 5px 0;
+    }
+
+    .upcoming-details {
+        color: #666;
+        margin: 0 0 5px 0;
+        font-size: 0.9rem;
+    }
+
+    .upcoming-date {
+        color: #999;
+        font-size: 0.8rem;
+    }
+
+    .upcoming-badge {
+        margin-right: 15px;
+    }
+
+    .badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .badge-promotion {
+        background: linear-gradient(135deg, #2196F3, #1976D2);
+        color: white;
+    }
+
+    .badge-allowance {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .welcome-title {
+            font-size: 2rem;
+        }
+        
+        .welcome-subtitle {
+            font-size: 1rem;
+        }
+        
+        .stat-card {
+            margin-bottom: 15px;
+        }
+    }
+</style>
+
+@code {
+    private EmployeeStatistics? statistics;
+    private List<EmployeeWithNextEntitlement>? upcomingEntitlements;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            statistics = await EmployeeService.GetEmployeeStatisticsAsync();
+            upcomingEntitlements = await EmployeeService.GetEmployeesWithNextEntitlementAsync();
+            
+            // ترتيب حسب الأقرب للاستحقاق
+            upcomingEntitlements = upcomingEntitlements
+                .Where(e => e.DaysUntilEntitlement <= 30) // الاستحقاقات خلال 30 يوم
+                .OrderBy(e => e.DaysUntilEntitlement)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // معالجة الأخطاء
+            Console.WriteLine($"خطأ في تحميل البيانات: {ex.Message}");
+        }
+    }
+
+    private async Task NavigateToAddEmployee()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", "/add-employee");
+    }
+
+    private async Task NavigateToEmployees()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", "/employees");
+    }
+
+    private async Task NavigateToEvents()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", "/events");
+    }
+}
+

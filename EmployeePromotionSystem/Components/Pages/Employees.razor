@@ -1,0 +1,511 @@
+@page "/employees"
+@using EmployeePromotionSystem.Services
+@using EmployeePromotionSystem.Models
+@inject IEmployeeService EmployeeService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>إدارة الموظفين - نظام أتمتة العلاوات والترفيعات</PageTitle>
+
+<div class="employees-container">
+    <!-- رأس الصفحة -->
+    <div class="page-header animate__animated animate__fadeInDown">
+        <div class="header-content">
+            <h1 class="page-title">
+                <i class="fas fa-users"></i>
+                إدارة الموظفين
+            </h1>
+            <p class="page-subtitle">عرض وإدارة جميع الموظفين في النظام</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" @onclick="NavigateToAddEmployee">
+                <i class="fas fa-plus"></i>
+                إضافة موظف جديد
+            </button>
+        </div>
+    </div>
+
+    <!-- أدوات البحث والفلترة -->
+    <div class="search-filters animate__animated animate__fadeInUp">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="form-control" placeholder="البحث في الموظفين..." 
+                           @bind="searchTerm" @oninput="OnSearchChanged" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" @bind="selectedCategory" @bind:after="OnCategoryChanged">
+                    <option value="">جميع الأصناف</option>
+                    @if (jobCategories != null)
+                    {
+                        @foreach (var category in jobCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" @bind="selectedGrade" @bind:after="OnGradeChanged">
+                    <option value="0">جميع الدرجات</option>
+                    @for (int i = 1; i <= 10; i++)
+                    {
+                        <option value="@i">الدرجة @i</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-control" @bind="sortBy" @bind:after="OnSortChanged">
+                    <option value="name">الاسم</option>
+                    <option value="date">تاريخ المباشرة</option>
+                    <option value="grade">الدرجة</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- قائمة الموظفين -->
+    <div class="employees-grid animate__animated animate__fadeInRight">
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <p>جاري تحميل بيانات الموظفين...</p>
+            </div>
+        }
+        else if (filteredEmployees != null && filteredEmployees.Any())
+        {
+            <div class="row">
+                @foreach (var employee in filteredEmployees)
+                {
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="employee-card" @onclick="() => ViewEmployeeProfile(employee.Id)">
+                            <div class="employee-header">
+                                <div class="employee-avatar">
+                                    @if (!string.IsNullOrEmpty(employee.PhotoPath))
+                                    {
+                                        <img src="@employee.PhotoPath" alt="@employee.FullName" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-user"></i>
+                                    }
+                                </div>
+                                <div class="employee-basic-info">
+                                    <h4 class="employee-name">@employee.FullName</h4>
+                                    <p class="employee-title">@employee.Title</p>
+                                    <span class="employee-category">@employee.JobCategory</span>
+                                </div>
+                            </div>
+                            
+                            <div class="employee-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">الدرجة والمرحلة:</span>
+                                    <span class="detail-value">@employee.CurrentGradeStage</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">تاريخ المباشرة:</span>
+                                    <span class="detail-value">@employee.StartDate.ToString("dd/MM/yyyy")</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">الخدمة الفعلية:</span>
+                                    <span class="detail-value">@employee.ActualServiceFormatted</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">الاستحقاق القادم:</span>
+                                    <span class="detail-value next-entitlement">
+                                        @employee.NextEntitlementType
+                                        @if (employee.NextEntitlementType == "ترفيع")
+                                        {
+                                            <i class="fas fa-arrow-up text-primary"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-plus text-success"></i>
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="employee-actions">
+                                <button class="btn btn-sm btn-outline-primary" @onclick:stopPropagation="true" 
+                                        @onclick="() => ViewEmployeeProfile(employee.Id)">
+                                    <i class="fas fa-eye"></i>
+                                    عرض الملف
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick:stopPropagation="true"
+                                        @onclick="() => EditEmployee(employee.Id)">
+                                    <i class="fas fa-edit"></i>
+                                    تعديل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="no-data-container">
+                <div class="no-data-icon">
+                    <i class="fas fa-users-slash"></i>
+                </div>
+                <h3>لا توجد بيانات موظفين</h3>
+                <p>لم يتم العثور على موظفين يطابقون معايير البحث المحددة</p>
+                <button class="btn btn-primary" @onclick="NavigateToAddEmployee">
+                    <i class="fas fa-plus"></i>
+                    إضافة موظف جديد
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .employees-container {
+        padding: 20px 0;
+    }
+
+    .page-header {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .page-title i {
+        margin-left: 15px;
+        color: #667eea;
+    }
+
+    .page-subtitle {
+        color: #666;
+        margin: 5px 0 0 0;
+        font-size: 1rem;
+    }
+
+    .search-filters {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 12px 45px 12px 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .employees-grid {
+        min-height: 400px;
+    }
+
+    .employee-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .employee-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .employee-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .employee-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 15px;
+        overflow: hidden;
+    }
+
+    .employee-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .employee-avatar i {
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .employee-basic-info {
+        flex: 1;
+    }
+
+    .employee-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 5px 0;
+    }
+
+    .employee-title {
+        color: #666;
+        margin: 0 0 5px 0;
+        font-size: 0.9rem;
+    }
+
+    .employee-category {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .employee-details {
+        flex: 1;
+        margin-bottom: 20px;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 8px 0;
+    }
+
+    .detail-label {
+        color: #666;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        color: #333;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .next-entitlement {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .employee-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+    }
+
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .loading-container, .no-data-container {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+
+    .loading-spinner i {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+
+    .no-data-icon i {
+        font-size: 4rem;
+        color: #ccc;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 20px;
+        }
+
+        .employee-card {
+            margin-bottom: 20px;
+        }
+    }
+</style>
+
+@code {
+    private List<Employee>? allEmployees;
+    private List<Employee>? filteredEmployees;
+    private List<string>? jobCategories;
+    private bool isLoading = true;
+
+    private string searchTerm = "";
+    private string selectedCategory = "";
+    private int selectedGrade = 0;
+    private string sortBy = "name";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            allEmployees = await EmployeeService.GetAllEmployeesAsync();
+            jobCategories = await EmployeeService.GetJobCategoriesAsync();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"خطأ في تحميل البيانات: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (allEmployees == null) return;
+
+        filteredEmployees = allEmployees.AsEnumerable();
+
+        // تطبيق البحث
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredEmployees = filteredEmployees.Where(e => 
+                e.FullName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.JobCategory.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.AcademicDegree.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // تطبيق فلتر الصنف
+        if (!string.IsNullOrWhiteSpace(selectedCategory))
+        {
+            filteredEmployees = filteredEmployees.Where(e => e.JobCategory == selectedCategory);
+        }
+
+        // تطبيق فلتر الدرجة
+        if (selectedGrade > 0)
+        {
+            filteredEmployees = filteredEmployees.Where(e => e.JobGrade == selectedGrade);
+        }
+
+        // تطبيق الترتيب
+        filteredEmployees = sortBy switch
+        {
+            "name" => filteredEmployees.OrderBy(e => e.FullName),
+            "date" => filteredEmployees.OrderBy(e => e.StartDate),
+            "grade" => filteredEmployees.OrderBy(e => e.JobGrade).ThenBy(e => e.JobStage),
+            _ => filteredEmployees.OrderBy(e => e.FullName)
+        };
+
+        filteredEmployees = filteredEmployees.ToList();
+    }
+
+    private async Task OnSearchChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        ApplyFilters();
+        await Task.Delay(1);
+    }
+
+    private void OnCategoryChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnGradeChanged()
+    {
+        ApplyFilters();
+    }
+
+    private void OnSortChanged()
+    {
+        ApplyFilters();
+    }
+
+    private async Task NavigateToAddEmployee()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", "/add-employee");
+    }
+
+    private async Task ViewEmployeeProfile(int employeeId)
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", $"/employee/{employeeId}");
+    }
+
+    private async Task EditEmployee(int employeeId)
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", $"/edit-employee/{employeeId}");
+    }
+}
+
