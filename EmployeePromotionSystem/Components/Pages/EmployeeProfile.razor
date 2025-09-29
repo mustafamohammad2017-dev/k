@@ -1,0 +1,919 @@
+@page "/employee/{employeeId:int}"
+@using EmployeePromotionSystem.Services
+@using EmployeePromotionSystem.Models
+@inject IEmployeeService EmployeeService
+@inject ICalculationEngine CalculationEngine
+@inject IJSRuntime JSRuntime
+
+<PageTitle>ملف الموظف - @(employee?.FullName ?? "غير محدد")</PageTitle>
+
+@if (employee == null)
+{
+    <div class="loading-container">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <p>جاري تحميل بيانات الموظف...</p>
+    </div>
+}
+else
+{
+    <div class="employee-profile-container">
+        <!-- قسم الرأس -->
+        <div class="profile-header animate__animated animate__fadeInDown">
+            <div class="employee-photo-section">
+                <div class="photo-container">
+                    @if (!string.IsNullOrEmpty(employee.PhotoPath))
+                    {
+                        <img src="@employee.PhotoPath" alt="@employee.FullName" class="employee-photo" />
+                    }
+                    else
+                    {
+                        <div class="photo-placeholder">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    }
+                    <button class="btn btn-sm btn-outline-primary photo-upload-btn" @onclick="UploadPhoto">
+                        <i class="fas fa-camera"></i>
+                        تحديث الصورة
+                    </button>
+                </div>
+            </div>
+            
+            <div class="employee-basic-info">
+                <div class="name-section">
+                    @if (isEditingBasicInfo)
+                    {
+                        <input @bind="editEmployee.FullName" class="form-control name-input" />
+                    }
+                    else
+                    {
+                        <h1 class="employee-name">@employee.FullName</h1>
+                    }
+                </div>
+                
+                <div class="info-row">
+                    @if (isEditingBasicInfo)
+                    {
+                        <div class="edit-fields">
+                            <select @bind="editEmployee.JobCategory" class="form-control">
+                                <option value="تدريسي">تدريسي</option>
+                                <option value="إداري">إداري</option>
+                                <option value="فني">فني</option>
+                                <option value="خدمي">خدمي</option>
+                            </select>
+                            <input @bind="editEmployee.Title" class="form-control" placeholder="العنوان الوظيفي" />
+                            <select @bind="editEmployee.AcademicDegree" class="form-control">
+                                <option value="دبلوم">دبلوم</option>
+                                <option value="بكالوريوس">بكالوريوس</option>
+                                <option value="ماجستير">ماجستير</option>
+                                <option value="دكتوراه">دكتوراه</option>
+                            </select>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="job-category">@employee.JobCategory</span>
+                        <span class="job-title">@employee.Title</span>
+                        <span class="academic-degree">@employee.AcademicDegree</span>
+                    }
+                </div>
+                
+                <div class="status-indicator">
+                    <span class="status-dot active"></span>
+                    <span class="status-text">في الخدمة</span>
+                </div>
+            </div>
+            
+            <div class="header-actions">
+                @if (isEditingBasicInfo)
+                {
+                    <button class="btn btn-success" @onclick="SaveBasicInfo">
+                        <i class="fas fa-save"></i>
+                        حفظ
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CancelEditBasicInfo">
+                        <i class="fas fa-times"></i>
+                        إلغاء
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" @onclick="EditBasicInfo">
+                        <i class="fas fa-edit"></i>
+                        تعديل البيانات
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- المؤشرات الرئيسية -->
+        <div class="key-metrics animate__animated animate__fadeInUp">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="metric-card current-position">
+                        <div class="metric-icon">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 class="metric-title">الدرجة والمرحلة الحالية</h3>
+                            <div class="metric-value">
+                                الدرجة @employee.JobGrade - المرحلة @employee.JobStage
+                            </div>
+                            <small class="metric-date">
+                                تاريخ الاستحقاق: @employee.LastAllowanceDate.ToString("dd/MM/yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="metric-card next-entitlement">
+                        <div class="metric-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 class="metric-title">الاستحقاق القادم</h3>
+                            <div class="metric-value">
+                                @employee.NextEntitlementType
+                                @if (employee.NextEntitlementType == "ترفيع")
+                                {
+                                    <span class="next-grade">
+                                        إلى الدرجة @(employee.JobGrade - 1)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="next-stage">
+                                        إلى المرحلة @(employee.JobStage + 1)
+                                    </span>
+                                }
+                            </div>
+                            <small class="metric-date">
+                                @nextEntitlementDate.ToString("dd/MM/yyyy")
+                                (@daysUntilEntitlement يوم)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="metric-card actual-service">
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 class="metric-title">الخدمة الفعلية</h3>
+                            <div class="metric-value">
+                                @employee.ActualServiceFormatted
+                            </div>
+                            <small class="metric-date">
+                                منذ @employee.StartDate.ToString("dd/MM/yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- السجلات التاريخية -->
+        <div class="historical-records animate__animated animate__fadeInLeft">
+            <div class="records-tabs">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link @(activeTab == "career" ? "active" : "")" 
+                           @onclick="() => SetActiveTab(\"career\")" role="tab">
+                            <i class="fas fa-trending-up"></i>
+                            المسار الوظيفي
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(activeTab == "events" ? "active" : "")" 
+                           @onclick="() => SetActiveTab(\"events\")" role="tab">
+                            <i class="fas fa-file-alt"></i>
+                            الأحداث المهنية
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="tab-content">
+                @if (activeTab == "career")
+                {
+                    <div class="career-timeline">
+                        @if (promotionHistory != null && promotionHistory.Any())
+                        {
+                            @foreach (var record in promotionHistory.OrderByDescending(p => p.EffectiveDate))
+                            {
+                                <div class="timeline-item">
+                                    <div class="timeline-marker @(record.Type == PromotionType.Promotion ? "promotion" : "allowance")">
+                                        @if (record.Type == PromotionType.Promotion)
+                                        {
+                                            <i class="fas fa-arrow-up"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-plus"></i>
+                                        }
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-header">
+                                            <h4 class="timeline-title">
+                                                @(record.Type == PromotionType.Promotion ? "ترفيع" : "علاوة سنوية")
+                                            </h4>
+                                            <span class="timeline-date">@record.EffectiveDate.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                        <p class="timeline-description">@record.Description</p>
+                                        @if (!string.IsNullOrEmpty(record.Impact))
+                                        {
+                                            <small class="timeline-impact">@record.Impact</small>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="no-records">
+                                <i class="fas fa-history"></i>
+                                <p>لا توجد سجلات في المسار الوظيفي حتى الآن</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (activeTab == "events")
+                {
+                    <div class="events-list">
+                        @if (professionalEvents != null && professionalEvents.Any())
+                        {
+                            @foreach (var eventItem in professionalEvents.OrderByDescending(e => e.EventDate))
+                            {
+                                <div class="event-item @GetEventTypeClass(eventItem.EventType)">
+                                    <div class="event-icon">
+                                        <i class="@GetEventIcon(eventItem.EventType)"></i>
+                                    </div>
+                                    <div class="event-content">
+                                        <div class="event-header">
+                                            <h5 class="event-title">@GetEventTypeName(eventItem.EventType)</h5>
+                                            <span class="event-date">@eventItem.EventDate.ToString("dd/MM/yyyy")</span>
+                                        </div>
+                                        <p class="event-description">@eventItem.Description</p>
+                                        @if (!string.IsNullOrEmpty(eventItem.DocumentNumber))
+                                        {
+                                            <small class="event-document">
+                                                رقم الكتاب: @eventItem.DocumentNumber
+                                                (@eventItem.DocumentDate?.ToString("dd/MM/yyyy"))
+                                            </small>
+                                        }
+                                        @if (eventItem.ImpactMonths != 0)
+                                        {
+                                            <div class="event-impact">
+                                                التأثير: @(eventItem.ImpactMonths > 0 ? "+" : "")@eventItem.ImpactMonths شهر
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="no-records">
+                                <i class="fas fa-calendar-times"></i>
+                                <p>لا توجد أحداث مهنية مسجلة</p>
+                                <button class="btn btn-primary" @onclick="AddProfessionalEvent">
+                                    <i class="fas fa-plus"></i>
+                                    إضافة حدث مهني
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .employee-profile-container {
+        padding: 20px 0;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .profile-header {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+    .employee-photo-section {
+        flex-shrink: 0;
+    }
+
+    .photo-container {
+        position: relative;
+        text-align: center;
+    }
+
+    .employee-photo {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .photo-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 3rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .photo-upload-btn {
+        margin-top: 10px;
+        font-size: 0.8rem;
+    }
+
+    .employee-basic-info {
+        flex: 1;
+    }
+
+    .employee-name {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0 0 15px 0;
+    }
+
+    .name-input {
+        font-size: 2rem;
+        font-weight: 700;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        margin-bottom: 15px;
+    }
+
+    .info-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .edit-fields {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .edit-fields .form-control {
+        min-width: 150px;
+        border-radius: 8px;
+    }
+
+    .job-category, .job-title, .academic-degree {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #28a745;
+        animation: pulse 2s infinite;
+    }
+
+    .status-text {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    .header-actions {
+        flex-shrink: 0;
+        display: flex;
+        gap: 10px;
+        flex-direction: column;
+    }
+
+    .key-metrics {
+        margin-bottom: 30px;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .current-position .metric-icon {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+
+    .next-entitlement .metric-icon {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .actual-service .metric-icon {
+        background: linear-gradient(135deg, #ffc107, #ff8c00);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #666;
+        margin: 0 0 8px 0;
+    }
+
+    .metric-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .metric-date {
+        color: #999;
+        font-size: 0.85rem;
+    }
+
+    .next-grade, .next-stage {
+        display: block;
+        font-size: 1rem;
+        color: #667eea;
+    }
+
+    .historical-records {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .records-tabs .nav-tabs {
+        border-bottom: 2px solid #f8f9fa;
+        padding: 0 30px;
+        background: #f8f9fa;
+    }
+
+    .records-tabs .nav-link {
+        border: none;
+        color: #666;
+        font-weight: 600;
+        padding: 20px 25px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 0;
+    }
+
+    .records-tabs .nav-link.active {
+        background: white;
+        color: #667eea;
+        border-bottom: 3px solid #667eea;
+    }
+
+    .tab-content {
+        padding: 30px;
+        min-height: 400px;
+    }
+
+    .career-timeline {
+        position: relative;
+    }
+
+    .career-timeline::before {
+        content: '';
+        position: absolute;
+        right: 30px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+        padding-right: 80px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        right: 15px;
+        top: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+        z-index: 1;
+    }
+
+    .timeline-marker.promotion {
+        background: linear-gradient(135deg, #2196F3, #1976D2);
+    }
+
+    .timeline-marker.allowance {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .timeline-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .timeline-date {
+        color: #667eea;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .timeline-description {
+        color: #666;
+        margin: 0 0 10px 0;
+        line-height: 1.5;
+    }
+
+    .timeline-impact {
+        color: #28a745;
+        font-weight: 500;
+    }
+
+    .events-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .event-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid;
+    }
+
+    .event-item.positive {
+        background: #f8fff9;
+        border-left-color: #28a745;
+    }
+
+    .event-item.negative {
+        background: #fff8f8;
+        border-left-color: #dc3545;
+    }
+
+    .event-item.neutral {
+        background: #f8f9fa;
+        border-left-color: #6c757d;
+    }
+
+    .event-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    .event-item.positive .event-icon {
+        background: #28a745;
+    }
+
+    .event-item.negative .event-icon {
+        background: #dc3545;
+    }
+
+    .event-item.neutral .event-icon {
+        background: #6c757d;
+    }
+
+    .event-content {
+        flex: 1;
+    }
+
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .event-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .event-date {
+        color: #666;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .event-description {
+        color: #666;
+        margin: 0 0 8px 0;
+        line-height: 1.4;
+    }
+
+    .event-document {
+        color: #999;
+        font-size: 0.8rem;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .event-impact {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .event-item.positive .event-impact {
+        color: #28a745;
+    }
+
+    .event-item.negative .event-impact {
+        color: #dc3545;
+    }
+
+    .no-records {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+
+    .no-records i {
+        font-size: 4rem;
+        color: #ccc;
+        margin-bottom: 20px;
+    }
+
+    .loading-container {
+        text-align: center;
+        padding: 100px 20px;
+        color: #666;
+    }
+
+    .loading-spinner i {
+        font-size: 3rem;
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 20px;
+        }
+
+        .employee-name {
+            font-size: 2rem;
+        }
+
+        .info-row {
+            justify-content: center;
+        }
+
+        .timeline-item {
+            padding-right: 60px;
+        }
+
+        .career-timeline::before {
+            right: 20px;
+        }
+
+        .timeline-marker {
+            right: 5px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public int EmployeeId { get; set; }
+    
+    private Employee? employee;
+    private Employee editEmployee = new();
+    private List<PromotionHistory>? promotionHistory;
+    private List<ProfessionalEvent>? professionalEvents;
+    
+    private DateTime nextEntitlementDate;
+    private int daysUntilEntitlement;
+    private string activeTab = "career";
+    private bool isEditingBasicInfo = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployeeData();
+    }
+
+    private async Task LoadEmployeeData()
+    {
+        try
+        {
+            employee = await EmployeeService.GetEmployeeByIdAsync(EmployeeId);
+            if (employee != null)
+            {
+                editEmployee = new Employee
+                {
+                    Id = employee.Id,
+                    FullName = employee.FullName,
+                    Title = employee.Title,
+                    JobCategory = employee.JobCategory,
+                    AcademicDegree = employee.AcademicDegree
+                };
+
+                // حساب الاستحقاق القادم
+                await CalculationEngine.ProcessEmployeeEntitlementsAsync(employee);
+                
+                // حساب الأيام المتبقية
+                nextEntitlementDate = employee.NextEntitlementDate;
+                daysUntilEntitlement = (nextEntitlementDate - DateTime.Today).Days;
+
+                // تحميل السجلات
+                promotionHistory = await EmployeeService.GetPromotionHistoryAsync(EmployeeId);
+                professionalEvents = await EmployeeService.GetProfessionalEventsAsync(EmployeeId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"خطأ في تحميل بيانات الموظف: {ex.Message}");
+        }
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+    }
+
+    private void EditBasicInfo()
+    {
+        isEditingBasicInfo = true;
+    }
+
+    private async Task SaveBasicInfo()
+    {
+        try
+        {
+            employee.FullName = editEmployee.FullName;
+            employee.Title = editEmployee.Title;
+            employee.JobCategory = editEmployee.JobCategory;
+            employee.AcademicDegree = editEmployee.AcademicDegree;
+
+            await EmployeeService.UpdateEmployeeAsync(employee);
+            isEditingBasicInfo = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"خطأ في حفظ البيانات: {ex.Message}");
+        }
+    }
+
+    private void CancelEditBasicInfo()
+    {
+        editEmployee.FullName = employee.FullName;
+        editEmployee.Title = employee.Title;
+        editEmployee.JobCategory = employee.JobCategory;
+        editEmployee.AcademicDegree = employee.AcademicDegree;
+        isEditingBasicInfo = false;
+    }
+
+    private async Task UploadPhoto()
+    {
+        // TODO: تنفيذ رفع الصور
+        await JSRuntime.InvokeVoidAsync("alert", "سيتم تنفيذ رفع الصور قريباً");
+    }
+
+    private async Task AddProfessionalEvent()
+    {
+        await JSRuntime.InvokeVoidAsync("window.location.href", $"/add-event/{EmployeeId}");
+    }
+
+    private string GetEventTypeClass(EventType eventType)
+    {
+        return eventType switch
+        {
+            EventType.Commendation or EventType.HigherDegree => "positive",
+            EventType.NoticePenalty or EventType.WarningPenalty or EventType.ReprimandPenalty => "negative",
+            _ => "neutral"
+        };
+    }
+
+    private string GetEventIcon(EventType eventType)
+    {
+        return eventType switch
+        {
+            EventType.Commendation => "fas fa-star",
+            EventType.HigherDegree => "fas fa-graduation-cap",
+            EventType.NoticePenalty => "fas fa-exclamation-triangle",
+            EventType.WarningPenalty => "fas fa-exclamation-circle",
+            EventType.ReprimandPenalty => "fas fa-times-circle",
+            EventType.UnpaidLeave => "fas fa-calendar-times",
+            EventType.DisabilityLeave => "fas fa-wheelchair",
+            EventType.FiveYearLeave => "fas fa-calendar-minus",
+            EventType.MaternityLeave => "fas fa-baby",
+            _ => "fas fa-file-alt"
+        };
+    }
+
+    private string GetEventTypeName(EventType eventType)
+    {
+        return eventType switch
+        {
+            EventType.Commendation => "كتاب شكر وتقدير",
+            EventType.HigherDegree => "الحصول على شهادة أعلى",
+            EventType.NoticePenalty => "عقوبة لفت نظر",
+            EventType.WarningPenalty => "عقوبة إنذار",
+            EventType.ReprimandPenalty => "عقوبة توبيخ",
+            EventType.UnpaidLeave => "إجازة بدون راتب",
+            EventType.DisabilityLeave => "إجازة رعاية المعاقين",
+            EventType.FiveYearLeave => "إجازة الخمس سنوات",
+            EventType.MaternityLeave => "إجازة أمومة",
+            EventType.Custom => "حدث مخصص",
+            _ => "حدث غير محدد"
+        };
+    }
+}
+

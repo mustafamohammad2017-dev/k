@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}الصفحة الرئيسية - نظام أتمتة العلاوات والترفيعات{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="page-header animate__animated animate__fadeInDown">
+                <h1 class="page-title">
+                    <i class="fas fa-tachometer-alt me-3"></i>
+                    لوحة التحكم الرئيسية
+                </h1>
+                <p class="page-subtitle">نظرة شاملة على النظام والإحصائيات الحالية</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card stat-card-primary animate__animated animate__fadeInUp">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">{{ employee_stats.total_employees }}</h3>
+                    <p class="stat-label">إجمالي الموظفين</p>
+                </div>
+                <div class="stat-footer">
+                    <a href="{{ url_for('employees.list_employees') }}" class="stat-link">
+                        عرض التفاصيل <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card stat-card-success animate__animated animate__fadeInUp" style="animation-delay: 0.1s;">
+                <div class="stat-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">{{ event_stats.positive_events }}</h3>
+                    <p class="stat-label">الأحداث الإيجابية</p>
+                </div>
+                <div class="stat-footer">
+                    <a href="{{ url_for('events.list_events') }}?event_type=commendation" class="stat-link">
+                        عرض التفاصيل <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card stat-card-warning animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">
+                <div class="stat-icon">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">{{ promotion_stats.recent_promotions }}</h3>
+                    <p class="stat-label">الترفيعات الحديثة</p>
+                </div>
+                <div class="stat-footer">
+                    <a href="{{ url_for('reports.promotions_report') }}" class="stat-link">
+                        عرض التفاصيل <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stat-card stat-card-info animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">{{ event_stats.total_events }}</h3>
+                    <p class="stat-label">إجمالي الأحداث</p>
+                </div>
+                <div class="stat-footer">
+                    <a href="{{ url_for('events.list_events') }}" class="stat-link">
+                        عرض التفاصيل <i class="fas fa-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card animate__animated animate__fadeInLeft">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-pie-chart me-2"></i>
+                        توزيع الموظفين حسب الصنف
+                    </h5>
+                </div>
+                <div class="chart-body">
+                    <canvas id="employeesByCategoryChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card animate__animated animate__fadeInRight">
+                <div class="chart-header">
+                    <h5 class="chart-title">
+                        <i class="fas fa-bar-chart me-2"></i>
+                        توزيع الموظفين حسب الدرجة
+                    </h5>
+                </div>
+                <div class="chart-body">
+                    <canvas id="employeesByGradeChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Entitlements -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card animate__animated animate__fadeInUp">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        الاستحقاقات القادمة (خلال 30 يوم)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if employee_stats.upcoming_entitlements %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>الموظف</th>
+                                        <th>الصنف</th>
+                                        <th>نوع الاستحقاق</th>
+                                        <th>التاريخ</th>
+                                        <th>الأيام المتبقية</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entitlement in employee_stats.upcoming_entitlements[:10] %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ entitlement.employee.full_name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ entitlement.employee.job_category }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ 'bg-success' if entitlement.type == 'ترفيع' else 'bg-primary' }}">
+                                                {{ entitlement.type }}
+                                            </span>
+                                        </td>
+                                        <td>{{ entitlement.date | arabic_date }}</td>
+                                        <td>
+                                            <span class="badge {{ 'bg-danger' if entitlement.days_remaining < 0 else 'bg-warning' if entitlement.days_remaining <= 7 else 'bg-info' }}">
+                                                {{ entitlement.days_remaining }} يوم
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('employees.view_employee', employee_id=entitlement.employee.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                                عرض
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if employee_stats.upcoming_entitlements|length > 10 %}
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('reports.upcoming_entitlements') }}" class="btn btn-primary">
+                                <i class="fas fa-list me-2"></i>
+                                عرض جميع الاستحقاقات القادمة
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">لا توجد استحقاقات قادمة خلال الـ 30 يوم القادمة</h5>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card animate__animated animate__fadeInUp">
+                <div class="card-header bg-gradient-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        الإجراءات السريعة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('employees.add_employee') }}" class="quick-action-card">
+                                <div class="quick-action-icon bg-primary">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>إضافة موظف جديد</h6>
+                                    <p>إضافة موظف جديد للنظام</p>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('events.add_event') }}" class="quick-action-card">
+                                <div class="quick-action-icon bg-success">
+                                    <i class="fas fa-calendar-plus"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>إضافة حدث مهني</h6>
+                                    <p>إضافة حدث مهني جديد</p>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('reports.dashboard') }}" class="quick-action-card">
+                                <div class="quick-action-icon bg-warning">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>التقارير والإحصائيات</h6>
+                                    <p>عرض التقارير المفصلة</p>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <a href="{{ url_for('main.search') }}" class="quick-action-card">
+                                <div class="quick-action-icon bg-info">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>البحث المتقدم</h6>
+                                    <p>البحث في النظام</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Load charts
+    loadEmployeesByCategoryChart();
+    loadEmployeesByGradeChart();
+});
+
+function loadEmployeesByCategoryChart() {
+    $.get('/reports/api/charts/employees-by-category')
+        .done(function(data) {
+            const ctx = document.getElementById('employeesByCategoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        })
+        .fail(function() {
+            $('#employeesByCategoryChart').parent().html('<p class="text-center text-muted">خطأ في تحميل البيانات</p>');
+        });
+}
+
+function loadEmployeesByGradeChart() {
+    $.get('/reports/api/charts/employees-by-grade')
+        .done(function(data) {
+            const ctx = document.getElementById('employeesByGradeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .fail(function() {
+            $('#employeesByGradeChart').parent().html('<p class="text-center text-muted">خطأ في تحميل البيانات</p>');
+        });
+}
+</script>
+{% endblock %}
+

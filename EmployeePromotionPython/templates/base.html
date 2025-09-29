@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}نظام أتمتة العلاوات والترفيعات الوظيفية{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts - Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Animate.css -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient-primary fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
+                <i class="fas fa-chart-line me-2"></i>
+                نظام أتمتة العلاوات والترفيعات
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'main.index' }}" href="{{ url_for('main.index') }}">
+                            <i class="fas fa-home me-1"></i>
+                            الرئيسية
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if 'employees' in request.endpoint }}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-users me-1"></i>
+                            الموظفين
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('employees.list_employees') }}">
+                                <i class="fas fa-list me-2"></i>قائمة الموظفين
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('employees.add_employee') }}">
+                                <i class="fas fa-user-plus me-2"></i>إضافة موظف جديد
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if 'events' in request.endpoint }}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            الأحداث المهنية
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('events.list_events') }}">
+                                <i class="fas fa-list me-2"></i>قائمة الأحداث
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('events.add_event') }}">
+                                <i class="fas fa-calendar-plus me-2"></i>إضافة حدث مهني
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if 'reports' in request.endpoint }}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-chart-bar me-1"></i>
+                            التقارير
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('reports.dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>لوحة التحكم
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reports.employees_report') }}">
+                                <i class="fas fa-users me-2"></i>تقرير الموظفين
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reports.events_report') }}">
+                                <i class="fas fa-calendar me-2"></i>تقرير الأحداث
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reports.promotions_report') }}">
+                                <i class="fas fa-arrow-up me-2"></i>تقرير الترفيعات
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('reports.upcoming_entitlements') }}">
+                                <i class="fas fa-clock me-2"></i>الاستحقاقات القادمة
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <!-- Search -->
+                <form class="d-flex me-3" action="{{ url_for('main.search') }}" method="GET">
+                    <div class="input-group">
+                        <input class="form-control" type="search" name="q" placeholder="البحث..." value="{{ request.args.get('q', '') }}">
+                        <button class="btn btn-outline-light" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container-fluid mt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show animate__animated animate__fadeInDown" role="alert">
+                            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' if category == 'success' else 'info-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer bg-dark text-light py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="fw-bold">نظام أتمتة العلاوات والترفيعات الوظيفية</h5>
+                    <p class="mb-0">نظام متكامل لإدارة وحوسبة العمليات المتعلقة بالعلاوات والترفيعات الوظيفية</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p class="mb-0">
+                        <i class="fas fa-code me-1"></i>
+                        تم التطوير بواسطة Python & Flask
+                    </p>
+                    <p class="mb-0">
+                        <i class="fas fa-calendar me-1"></i>
+                        {{ moment().format('YYYY') }} ©
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Moment.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/ar.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
